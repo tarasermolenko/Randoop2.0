@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using Common.RandoopBareExceptions;
 using Common;
+using Randoop;
 
 namespace RandoopBare
 {

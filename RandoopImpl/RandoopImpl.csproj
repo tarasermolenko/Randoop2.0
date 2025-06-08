@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RandoopCommon\RandoopCommon.csproj" />
-    <ProjectReference Include="..\RandoopImpl\RandoopImpl.csproj" />
   </ItemGroup>
 
 </Project>
