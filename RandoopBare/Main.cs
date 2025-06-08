@@ -5,6 +5,8 @@ using System.IO;
 using System.Reflection;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using Common.RandoopBareExceptions;
+using Common;
 
 namespace RandoopBare
 {
@@ -28,7 +30,7 @@ namespace RandoopBare
             }
             catch (InternalError e)
             {
-                Console.Error.WriteLine(Util.SummarizeException(e, Common.Enviroment.RandoopBareInternalErrorMessage));
+                Console.Error.WriteLine(Util.SummarizeException(e, Common.Environment.RandoopBareInternalErrorMessage));
                 System.Environment.Exit(1);
             }
             catch (Exception e)
@@ -59,13 +61,13 @@ namespace RandoopBare
                 Console.WriteLine("Randoom seed = " + config.randomseed);
                 Common.SystemRandom random = new Common.SystemRandom();
                 random.Init(config.randomseed);
-                Common.Enviroment.Random = random;
+                Common.Environment.Random = random;
             }
             else
             {
                 Util.Assert(config.randomSource == RandomSource.Crypto);
                 Console.WriteLine("Randoom seed = new System.Security.Cryptography.RNGCryptoServiceProvider()");
-                Common.Enviroment.Random = new CryptoRandom();
+                Common.Environment.Random = new CryptoRandom();
             }
 
             if (!Directory.Exists(config.outputdir))
