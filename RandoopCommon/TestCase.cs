@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿
 using System.Text;
-using System.Threading.Tasks;
-
-
 using System.CodeDom.Compiler;
-using System.IO;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+
+using Microsoft.CodeAnalysis;
 
 namespace Common
 {
@@ -135,7 +131,7 @@ namespace Common
             }
             catch (Exception e)
             {
-                Common.Enviroment.Fail("Encountered a problem when attempting to read file "
+                Common.Environment.Fail("Encountered a problem when attempting to read file "
                     + filePath
                     + ". Exception message: "
                     + e.Message);
@@ -401,6 +397,8 @@ namespace Common
         /// Used to communicate the result of running a test case
         /// as a separate process. See RunExternal().
         /// </summary>
+        /// 
+        // TO DO: rework with Microsoft.CodeAnalysis
         public class RunResults
         {
             public readonly CompilFailure compilationFailureReason;

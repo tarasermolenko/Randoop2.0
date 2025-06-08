@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using Common.RandoopBareExceptions;
 using Common;
 using Randoop;
@@ -122,7 +117,7 @@ namespace RandoopBare
 
             RandomExplorer explorer =
                 new RandomExplorer(typesToExplore, filter, true, config.randomseed, config.arraymaxsize, stats, actions);
-            ITimer t = new Timer(config.timelimit);
+            Common.ITimer t = new Common.Timer(config.timelimit);
             try
             {
                 explorer.Explore(t, planManager, config.methodweighing, config.forbidnull, true, config.fairOpt);
