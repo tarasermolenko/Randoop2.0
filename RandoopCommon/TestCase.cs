@@ -1,10 +1,13 @@
 ﻿
-using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using System.CodeDom.Compiler;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-
-using Microsoft.CodeAnalysis;
+using System.Reflection;
+using System.Text;
+using static Common.TestCase;
 
 namespace Common
 {
@@ -398,33 +401,69 @@ namespace Common
         /// as a separate process. See RunExternal().
         /// </summary>
         /// 
-        // TO DO: rework with Microsoft.CodeAnalysis
+
+        // Outdated
+        //public class RunResults
+        //{
+        //    public readonly CompilFailure compilationFailureReason;
+
+        //    /// <summary>
+        //    /// If !compilationSuccessful, contains the compiler errors.
+        //    /// Otherwise, set to null.
+        //    /// </summary>
+        //    public readonly CompilerErrorCollection compilerErrors;
+        //    public readonly bool compilationSuccessful;
+        //    public readonly bool behaviorReproduced;
+
+        //    public enum CompilFailure { MissingReference, Other, NA }
+
+        //    private RunResults(bool compilationSuccessful, bool behaviorReproduced,
+        //        CompilFailure reason, CompilerErrorCollection compilerErrors)
+        //    {
+        //        this.compilationFailureReason = reason;
+        //        this.compilationSuccessful = compilationSuccessful;
+        //        this.behaviorReproduced = behaviorReproduced;
+        //        this.compilerErrors = compilerErrors;
+        //    }
+
+        //    public static RunResults CompilationFailed(CompilFailure reason, CompilerErrorCollection errors)
+        //    {
+        //        return new RunResults(false, false, reason, errors);
+        //    }
+
+        //    public static RunResults CompiledOKBehaviorWasReproduced()
+        //    {
+        //        return new RunResults(true, true, CompilFailure.NA, null);
+        //    }
+
+        //    public static RunResults CompiledOKBehaviorNotReproduced()
+        //    {
+        //        return new RunResults(true, false, CompilFailure.NA, null);
+        //    }
+        //}
+
+        // TO DO: reworked function with Microsoft.CodeAnalysis
         public class RunResults
         {
-            public readonly CompilFailure compilationFailureReason;
-
-            /// <summary>
-            /// If !compilationSuccessful, contains the compiler errors.
-            /// Otherwise, set to null.
-            /// </summary>
-            public readonly CompilerErrorCollection compilerErrors;
-            public readonly bool compilationSuccessful;
-            public readonly bool behaviorReproduced;
-
             public enum CompilFailure { MissingReference, Other, NA }
 
+            public readonly CompilFailure CompilationFailureReason;
+            public readonly bool CompilationSuccessful;
+            public readonly bool BehaviorReproduced;
+            public readonly List<Diagnostic>? Diagnostics;
+
             private RunResults(bool compilationSuccessful, bool behaviorReproduced,
-                CompilFailure reason, CompilerErrorCollection compilerErrors)
+                CompilFailure reason, List<Diagnostic>? diagnostics)
             {
-                this.compilationFailureReason = reason;
-                this.compilationSuccessful = compilationSuccessful;
-                this.behaviorReproduced = behaviorReproduced;
-                this.compilerErrors = compilerErrors;
+                CompilationFailureReason = reason;
+                CompilationSuccessful = compilationSuccessful;
+                BehaviorReproduced = behaviorReproduced;
+                Diagnostics = diagnostics;
             }
 
-            public static RunResults CompilationFailed(CompilFailure reason, CompilerErrorCollection errors)
+            public static RunResults CompilationFailed(CompilFailure reason, List<Diagnostic> diagnostics)
             {
-                return new RunResults(false, false, reason, errors);
+                return new RunResults(false, false, reason, diagnostics);
             }
 
             public static RunResults CompiledOKBehaviorWasReproduced()
@@ -438,6 +477,7 @@ namespace Common
             }
         }
 
+
         /// <summary>
         /// Executes this test case in a separate process.
         /// Compares the result of the execution against the
@@ -448,97 +488,248 @@ namespace Common
         /// or "compilation failed").
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
+
+        //public RunResults RunExternal()
+        //{
+        //    // Set up compiler parameters.
+        //    CompilerParameters cp = new CompilerParameters();
+        //    AddReferenceLibraries(cp);
+        //    cp.GenerateExecutable = true;
+        //    cp.OutputAssembly = "Temp.exe";
+        //    cp.GenerateInMemory = false;
+        //    cp.TreatWarningsAsErrors = false;
+
+        //    // Compile sources.
+        //    CodeDomProvider provider = new Microsoft.CSharp.CSharpCodeProvider();
+        //    CompilerResults cr = provider.CompileAssemblyFromSource(cp, this.ToString());
+        //    if (cr.Errors.Count > 0)
+        //        return AppropriateErrorResult(cr);
+
+        //    // Run test in separate process.
+        //    Process p = new Process();
+        //    p.StartInfo.FileName = Common.Enviroment.MiniDHandler;
+        //    p.StartInfo.RedirectStandardOutput = true;
+        //    StringBuilder arguments = new StringBuilder();
+        //    arguments.Append("/O:\"C:\\foobar.txt\"");
+        //    arguments.Append(" /I:" + "\"" + Common.Enviroment.DefaultDhi + "\"");
+        //    arguments.Append(" /App:\"Temp\"");
+        //    p.StartInfo.Arguments = arguments.ToString();
+        //    p.StartInfo.UseShellExecute = false;
+        //    p.StartInfo.ErrorDialog = true;
+        //    p.StartInfo.CreateNoWindow = false;
+
+        //    p.Start();
+        //    string output = p.StandardOutput.ReadToEnd();
+        //    p.WaitForExit(10000);
+
+        //    // Exit code 100 means behavior was reproduced.
+        //    if (p.ExitCode != 100)
+        //    {
+        //        return RunResults.CompiledOKBehaviorNotReproduced();
+        //    }
+        //    return RunResults.CompiledOKBehaviorWasReproduced();
+        //}
+
+
         public RunResults RunExternal()
         {
-            // Set up compiler parameters.
-            CompilerParameters cp = new CompilerParameters();
-            AddReferenceLibraries(cp);
-            cp.GenerateExecutable = true;
-            cp.OutputAssembly = "Temp.exe";
-            cp.GenerateInMemory = false;
-            cp.TreatWarningsAsErrors = false;
+            // 1. Get the source code string from this.ToString()
+            string code = this.ToString();
 
-            // Compile sources.
-            CodeDomProvider provider = new Microsoft.CSharp.CSharpCodeProvider();
-            CompilerResults cr = provider.CompileAssemblyFromSource(cp, this.ToString());
-            if (cr.Errors.Count > 0)
-                return AppropriateErrorResult(cr);
+            // 2. Parse code to SyntaxTree
+            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
 
-            // Run test in separate process.
+            // 3. Get references for compilation
+            List<MetadataReference> references = BuildReferenceList();
+
+            // 4. Create the compilation object
+            CSharpCompilation compilation = CSharpCompilation.Create(
+                assemblyName: "TempAssembly",
+                syntaxTrees: new[] { syntaxTree },
+                references: references,
+                options: new CSharpCompilationOptions(OutputKind.ConsoleApplication));
+
+            // 5. Emit the compiled code to an executable file
+            string exePath = Path.Combine(Path.GetTempPath(), "Temp.exe");
+            EmitResult emitResult;
+            using (var fs = new FileStream(exePath, FileMode.Create))
+            {
+                emitResult = compilation.Emit(fs);
+            }
+
+            // 6. Check if compilation succeeded
+            if (!emitResult.Success)
+            {
+                // Compilation failed, return diagnostics
+                return RunResults.CompilationFailed(RunResults.CompilFailure.Other, emitResult.Diagnostics.ToList());
+            }
+
+            // 7. Run the compiled executable as a separate process
             Process p = new Process();
-            p.StartInfo.FileName = Common.Enviroment.MiniDHandler;
+            p.StartInfo.FileName = exePath;
             p.StartInfo.RedirectStandardOutput = true;
-            StringBuilder arguments = new StringBuilder();
-            arguments.Append("/O:\"C:\\foobar.txt\"");
-            arguments.Append(" /I:" + "\"" + Common.Enviroment.DefaultDhi + "\"");
-            arguments.Append(" /App:\"Temp\"");
-            p.StartInfo.Arguments = arguments.ToString();
             p.StartInfo.UseShellExecute = false;
-            p.StartInfo.ErrorDialog = true;
-            p.StartInfo.CreateNoWindow = false;
+            p.StartInfo.CreateNoWindow = true;
 
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(10000);
+            try
+            {
+                p.Start();
 
-            // Exit code 100 means behavior was reproduced.
+                // Read standard output (optional)
+                string output = p.StandardOutput.ReadToEnd();
+
+                // Wait up to 10 seconds for exit
+                p.WaitForExit(10000);
+            }
+            catch (System.Exception ex)
+            {
+                // Process start failed, treat as behavior not reproduced
+                return RunResults.CompiledOKBehaviorNotReproduced();
+            }
+
+            // 8. Exit code 100 means behavior was reproduced (per your original logic)
             if (p.ExitCode != 100)
             {
                 return RunResults.CompiledOKBehaviorNotReproduced();
             }
+
+            // 9. Clean up temporary executable file (optional)
+            try
+            {
+                if (File.Exists(exePath))
+                    File.Delete(exePath);
+            }
+            catch { /* ignore cleanup errors */ }
+
             return RunResults.CompiledOKBehaviorWasReproduced();
         }
 
-        private static RunResults AppropriateErrorResult(CompilerResults cr)
+
+        //private static RunResults AppropriateErrorResult(CompilerResults cr)
+        //  {
+        //        foreach (CompilerError error in cr.Errors)
+        //        {
+        //            if (error.ToString().Contains("is defined in an assembly that is not referenced"))
+        //            {
+        //                //Console.WriteLine("@@@" + error.ToString());
+        //                //Console.WriteLine("@@@" + this.ToString());
+        //                return RunResults.CompilationFailed(RunResults.CompilFailure.MissingReference, cr.Errors);
+        //            }
+        //        }
+        //        return RunResults.CompilationFailed(RunResults.CompilFailure.Other, cr.Errors);
+        //  }
+
+        private static RunResults AppropriateErrorResult(IEnumerable<Diagnostic> diagnostics)
         {
-            foreach (CompilerError error in cr.Errors)
+            foreach (var diagnostic in diagnostics)
             {
-                if (error.ToString().Contains("is defined in an assembly that is not referenced"))
+                if (diagnostic.GetMessage().Contains("is defined in an assembly that is not referenced"))
                 {
-                    //Console.WriteLine("@@@" + error.ToString());
-                    //Console.WriteLine("@@@" + this.ToString());
-                    return RunResults.CompilationFailed(RunResults.CompilFailure.MissingReference, cr.Errors);
+                    return RunResults.CompilationFailed(RunResults.CompilFailure.MissingReference, null);
                 }
             }
-            return RunResults.CompilationFailed(RunResults.CompilFailure.Other, cr.Errors);
+
+            return RunResults.CompilationFailed(RunResults.CompilFailure.Other, null);
         }
 
+
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
-        public void AddReferenceLibraries(CompilerParameters cp)
+        //public void AddReferenceLibraries(CompilerParameters cp)
+        //{
+        //    bool addedSystem = false;
+        //    bool addedSystemXml = false;
+        //    bool addedSystemSecurity = false;
+        //    bool addedSystemData = false;
+        //    bool addedSystemDrawing = false;
+        //    foreach (RefAssembly ra in this.refAssemblies)
+        //    {
+        //        cp.ReferencedAssemblies.Add(ra.refAssemblyString);
+
+        //        String assemblyName = ra.refAssemblyString.ToLower();
+        //        if (assemblyName.EndsWith("system.dll"))
+        //            addedSystem = true;
+        //        else if (assemblyName.EndsWith("system.xml.dll"))
+        //            addedSystemXml = true;
+        //        else if (assemblyName.EndsWith("system.security.dll"))
+        //            addedSystemSecurity = true;
+        //        else if (assemblyName.EndsWith("system.data.dll"))
+        //            addedSystemData = true;
+        //        else if (assemblyName.EndsWith("system.drawing.dll"))
+        //            addedSystemDrawing = true;
+        //    }
+
+        //    // Add some standard assemblies by default.
+        //    if (!addedSystem)
+        //        cp.ReferencedAssemblies.Add("System.dll");
+        //    if (!addedSystemXml)
+        //        cp.ReferencedAssemblies.Add("System.Xml.dll");
+        //    if (!addedSystemSecurity)
+        //        cp.ReferencedAssemblies.Add("System.Security.dll");
+        //    if (!addedSystemData)
+        //        cp.ReferencedAssemblies.Add("System.Data.dll");
+        //    if (!addedSystemDrawing)
+        //        cp.ReferencedAssemblies.Add("System.Drawing.dll");
+        //}
+
+        public List<MetadataReference> BuildReferenceList()
         {
+            var references = new List<MetadataReference>();
+
             bool addedSystem = false;
             bool addedSystemXml = false;
             bool addedSystemSecurity = false;
             bool addedSystemData = false;
             bool addedSystemDrawing = false;
+
             foreach (RefAssembly ra in this.refAssemblies)
             {
-                cp.ReferencedAssemblies.Add(ra.refAssemblyString);
+                string path = ra.refAssemblyString;
 
-                String assemblyName = ra.refAssemblyString.ToLower();
-                if (assemblyName.EndsWith("system.dll"))
+                if (File.Exists(path))
+                {
+                    references.Add(MetadataReference.CreateFromFile(path));
+                }
+
+                string lower = path.ToLowerInvariant();
+                if (lower.EndsWith("system.dll"))
                     addedSystem = true;
-                else if (assemblyName.EndsWith("system.xml.dll"))
+                else if (lower.EndsWith("system.xml.dll"))
                     addedSystemXml = true;
-                else if (assemblyName.EndsWith("system.security.dll"))
+                else if (lower.EndsWith("system.security.dll"))
                     addedSystemSecurity = true;
-                else if (assemblyName.EndsWith("system.data.dll"))
+                else if (lower.EndsWith("system.data.dll"))
                     addedSystemData = true;
-                else if (assemblyName.EndsWith("system.drawing.dll"))
+                else if (lower.EndsWith("system.drawing.dll"))
                     addedSystemDrawing = true;
             }
 
-            // Add some standard assemblies by default.
-            if (!addedSystem)
-                cp.ReferencedAssemblies.Add("System.dll");
-            if (!addedSystemXml)
-                cp.ReferencedAssemblies.Add("System.Xml.dll");
-            if (!addedSystemSecurity)
-                cp.ReferencedAssemblies.Add("System.Security.dll");
-            if (!addedSystemData)
-                cp.ReferencedAssemblies.Add("System.Data.dll");
-            if (!addedSystemDrawing)
-                cp.ReferencedAssemblies.Add("System.Drawing.dll");
+            // Add default references if missing
+            string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+
+            void AddDefault(string dllName, ref bool added)
+            {
+                if (!added)
+                {
+                    string path = Path.Combine(runtimeDir, dllName);
+                    if (File.Exists(path))
+                    {
+                        references.Add(MetadataReference.CreateFromFile(path));
+                    }
+                    added = true;
+                }
+            }
+
+            AddDefault("System.dll", ref addedSystem);
+            AddDefault("System.Xml.dll", ref addedSystemXml);
+            AddDefault("System.Security.dll", ref addedSystemSecurity);
+            AddDefault("System.Data.dll", ref addedSystemData);
+            AddDefault("System.Drawing.dll", ref addedSystemDrawing);
+
+            // Always add mscorlib (which is usually System.Private.CoreLib in .NET Core+)
+            references.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+            return references;
         }
 
 

@@ -1,12 +1,12 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using System.Collections.ObjectModel;
-using System.IO;
-using System.CodeDom.Compiler;
+using static Common.TestCase;
 
 namespace Common
 {
@@ -67,13 +67,21 @@ namespace Common
             }
         }
 
+        // outdated
+        //private static bool Reproduce(FileInfo oneTest)
+        //{
+        //    TestCase test = new TestCase(oneTest);
+        //    TestCase.RunResults results = test.RunExternal();
+        //    if (results.behaviorReproduced)
+        //        return true;
+        //    return false;
+        //}
+
         private static bool Reproduce(FileInfo oneTest)
         {
             TestCase test = new TestCase(oneTest);
-            TestCase.RunResults results = test.RunExternal();
-            if (results.behaviorReproduced)
-                return true;
-            return false;
+            RunResults results = test.RunExternal();
+            return results.BehaviorReproduced;
         }
 
         public static void Minimize(Collection<FileInfo> testPaths)
@@ -86,64 +94,139 @@ namespace Common
             }
         }
 
+        // outdated
+        //public static int Minimize(FileInfo testPath)
+        //{
+        //    TestCase testFile = new TestCase(testPath);
+
+        //    testFile.WriteToFile(testPath + ".nonmin", false);
+
+        //    int linesRemoved = 0;
+
+        //    //            Console.WriteLine(testFile);
+
+        //    for (int linePos = testFile.NumTestLines - 1; linePos >= 0; linePos--)
+        //    {
+        //        string oldLine = testFile.RemoveLine(linePos);
+
+        //        if (!testFile.RunExternal().behaviorReproduced)
+        //        {
+        //            testFile.AddLine(linePos, oldLine);
+        //        }
+        //        else
+        //        {
+        //            linesRemoved++;
+        //        }
+        //    }
+
+        //    testFile.WriteToFile(testPath, false);
+        //    return linesRemoved;
+        //}
 
         public static int Minimize(FileInfo testPath)
         {
             TestCase testFile = new TestCase(testPath);
 
+            // Save original version
             testFile.WriteToFile(testPath + ".nonmin", false);
 
             int linesRemoved = 0;
-
-            //            Console.WriteLine(testFile);
 
             for (int linePos = testFile.NumTestLines - 1; linePos >= 0; linePos--)
             {
                 string oldLine = testFile.RemoveLine(linePos);
 
-                if (!testFile.RunExternal().behaviorReproduced)
+                RunResults result = testFile.RunExternal();
+
+                if (!result.BehaviorReproduced)
                 {
-                    testFile.AddLine(linePos, oldLine);
+                    testFile.AddLine(linePos, oldLine); // Revert the removal
                 }
                 else
                 {
-                    linesRemoved++;
+                    linesRemoved++; // Line was unnecessary
                 }
             }
 
-            testFile.WriteToFile(testPath, false);
+            testFile.WriteToFile(testPath, false); // Save minimized version
             return linesRemoved;
         }
+
+
+        // outdated
+        //public static Collection<FileInfo> RemoveNonReproducibleErrors(Collection<FileInfo> partitionedTests)
+        //{
+        //    Collection<FileInfo> reproducibleTests = new Collection<FileInfo>();
+        //    foreach (FileInfo test in partitionedTests)
+        //    {
+        //        TestCase testCase = new TestCase(test);
+
+        //        // Don't attempt to reproduce non-error-revealing tests (to save time).
+        //        if (!IsErrorRevealing(testCase))
+        //        {
+        //            reproducibleTests.Add(test);
+        //            continue;
+        //        }
+
+        //        TestCase.RunResults runResults = testCase.RunExternal();
+        //        if (runResults.behaviorReproduced)
+        //            reproducibleTests.Add(test);
+        //        else
+        //        {
+        //            if (!runResults.compilationSuccessful)
+        //            {
+        //                //Console.WriteLine("@@@COMPILATIONFAILED:");
+        //                //foreach (CompilerError err in runResults.compilerErrors)
+        //                //    Console.WriteLine("@@@" + err);
+        //            }
+        //            test.Delete();
+        //        }
+        //    }
+        //    return reproducibleTests;
+        //}
+
         public static Collection<FileInfo> RemoveNonReproducibleErrors(Collection<FileInfo> partitionedTests)
         {
             Collection<FileInfo> reproducibleTests = new Collection<FileInfo>();
+
             foreach (FileInfo test in partitionedTests)
             {
                 TestCase testCase = new TestCase(test);
 
-                // Don't attempt to reproduce non-error-revealing tests (to save time).
+                // Skip non-error-revealing tests
                 if (!IsErrorRevealing(testCase))
                 {
                     reproducibleTests.Add(test);
                     continue;
                 }
 
-                TestCase.RunResults runResults = testCase.RunExternal();
-                if (runResults.behaviorReproduced)
+                RunResults runResults = testCase.RunExternal();
+
+                if (runResults.BehaviorReproduced)
+                {
                     reproducibleTests.Add(test);
+                }
                 else
                 {
-                    if (!runResults.compilationSuccessful)
+                    if (!runResults.CompilationSuccessful)
                     {
-                        //Console.WriteLine("@@@COMPILATIONFAILED:");
-                        //foreach (CompilerError err in runResults.compilerErrors)
-                        //    Console.WriteLine("@@@" + err);
+                        // Optional: log diagnostics for debugging
+                        // Console.WriteLine("@@@ Compilation failed:");
+                        // if (runResults.Diagnostics != null)
+                        // {
+                        //     foreach (var diag in runResults.Diagnostics)
+                        //         Console.WriteLine("@@@" + diag.ToString());
+                        // }
                     }
+
+                    // Delete non-reproducible or broken test
                     test.Delete();
                 }
             }
+
             return reproducibleTests;
         }
+
 
 
         private class EquivClass
