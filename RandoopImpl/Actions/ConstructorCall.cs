@@ -159,7 +159,7 @@ namespace Randoop
 
             this.timesExecuted++;
             long startTime = 0;
-            Timer.QueryPerformanceCounter(ref startTime);
+            Common.Timer.QueryPerformanceCounter(ref startTime);
 
             object[] objects = new object[fconstructor.GetParameters().Length];
             // Get the actual objects from the results using parameterIndices;
@@ -270,8 +270,8 @@ namespace Randoop
             }
 
             long endTime = 0;
-            Timer.QueryPerformanceCounter(ref endTime);
-            executionTimeAccum += ((double)(endTime - startTime)) / ((double)(Timer.PerfTimerFrequency));
+            Common.Timer.QueryPerformanceCounter(ref endTime);
+            executionTimeAccum += ((double)(endTime - startTime)) / ((double)(Common.Timer.PerfTimerFrequency));
 
             if (contractViolated)  //xiao.qu@us.abb.com adds
                 executionLog.WriteLine("contract violation."); //xiao.qu@us.abb.com adds

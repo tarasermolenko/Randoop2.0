@@ -389,7 +389,7 @@ namespace Randoop
         {
             this.numTimesExecuted++;
             long startTime = 0;
-            Timer.QueryPerformanceCounter(ref startTime);
+            Common.Timer.QueryPerformanceCounter(ref startTime);
 
             // Execute parent plans
             ResultTuple[] results1 = new ResultTuple[parentPlans.Length];
@@ -512,9 +512,9 @@ namespace Randoop
         private void RecordExecutionTime(long startTime)
         {
             long endTime = 0;
-            Timer.QueryPerformanceCounter(ref endTime);
+            Common.Timer.QueryPerformanceCounter(ref endTime);
 
-            double executionTime = ((double)(endTime - startTime)) / ((double)(Timer.PerfTimerFrequency));
+            double executionTime = ((double)(endTime - startTime)) / ((double)(Common.Timer.PerfTimerFrequency));
 
             this.executionTimeAccum += executionTime;
 

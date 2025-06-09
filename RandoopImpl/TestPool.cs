@@ -242,7 +242,7 @@ namespace Randoop
             if (plans == null || plans.Size() == 0)
                 return null;
 
-            int randnum = Common.Enviroment.Random.Next(plans.Size()); //xiao.qu@us.abb.com adds for debug
+            int randnum = Common.Environment.Random.Next(plans.Size()); //xiao.qu@us.abb.com adds for debug
             return plans.Get(randnum);
         }
 
