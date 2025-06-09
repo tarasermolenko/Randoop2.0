@@ -56,7 +56,10 @@ namespace Randoop
         Dictionary<Type, List<MemberInfo>> type2pendingMembers = new Dictionary<Type, List<MemberInfo>>();
 
         //temporary hack to redirect the stats dmp to a file, from the std output
+       
+        // outdated
         static TextWriter fairOptLog = null;
+        
 
         #endregion
 

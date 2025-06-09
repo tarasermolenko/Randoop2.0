@@ -117,7 +117,7 @@ namespace Randoop
                     executionLog.WriteLine("LASTPLANID:" + p.uniqueId);
 
                     long startTime = 0;
-                    Timer.QueryPerformanceCounter(ref startTime);
+                    Common.Timer.QueryPerformanceCounter(ref startTime);
 
                     bool execSucceeded = p.Execute(out execResult,
                         executionLog, writer, out exceptionThrown,
@@ -125,7 +125,7 @@ namespace Randoop
                         config.monkey);
 
                     long endTime = 0;
-                    Timer.QueryPerformanceCounter(ref endTime);
+                    Common.Timer.QueryPerformanceCounter(ref endTime);
                     TimeTracking.timeSpentExecutingTestedCode += (endTime - startTime);
 
                     executionLog.Close();
@@ -210,7 +210,7 @@ namespace Randoop
         private void PrintPercentageExecuted()
         {
             long endTime = 0;
-            Timer.QueryPerformanceCounter(ref endTime);
+            Common.Timer.QueryPerformanceCounter(ref endTime);
 
             long totalGenerationTime = endTime - TimeTracking.generationStartTime;
 
