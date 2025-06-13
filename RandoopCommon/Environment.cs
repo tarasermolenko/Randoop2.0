@@ -289,15 +289,15 @@ namespace Common
         {
             string dir = (config == Configuration.Debug ? "Debug" : "Release");
 
-            randoopExe = randoopHome + @"\Randoop\bin\" + dir + @"\Randoop.exe";
-            if (!File.Exists(randoopExe))
-            {
-                Console.WriteLine("*** Error: randoop could not find file {0}.", randoopExe);
-                System.Environment.Exit(1);
-            }
+            //randoopExe = randoopHome + @"\Randoop\net8.0\" + dir + @"\Randoop.exe";
+            //if (!File.Exists(randoopExe))
+            //{
+            //    Console.WriteLine("*** Error: randoop could not find file {0}.", randoopExe);
+            //    System.Environment.Exit(1);
+            //}
 
 
-            randoopBareExe = randoopHome + @"\RandoopBare\bin\" + dir + @"\RandoopBare.exe";
+            randoopBareExe = randoopHome + @"\RandoopBare\net8.0\" + dir + @"\RandoopBare.exe";
             if (!File.Exists(randoopBareExe))
             {
                 Console.WriteLine("*** Error: randoop could not find file {0}.", randoopBareExe);
@@ -308,15 +308,15 @@ namespace Common
         private static void SetRandoopBinariesVarsRelease()
         {
 
-            randoopExe = randoopHome + @"\bin\randoop.exe";
-            if (!File.Exists(randoopExe))
-            {
-                Console.WriteLine("*** Error: randoop could not find file {0}.", randoopExe);
-                System.Environment.Exit(1);
-            }
+            //randoopExe = randoopHome + @"\net8.0\randoop.exe";
+            //if (!File.Exists(randoopExe))
+            //{
+            //    Console.WriteLine("*** Error: randoop could not find file {0}.", randoopExe);
+            //    System.Environment.Exit(1);
+            //}
 
 
-            randoopBareExe = randoopHome + @"\bin\randoopbare.exe";
+            randoopBareExe = randoopHome + @"\net8.0\randoopbare.exe";
             if (!File.Exists(randoopBareExe))
             {
                 Console.WriteLine("*** Error: randoop could not find file {0}.", randoopBareExe);
@@ -521,12 +521,12 @@ namespace Common
             //}
 
 
-            pageHeap = randoopHome + @"\auxtools\pageheap.exe";
-            if (!File.Exists(pageHeap))
-            {
-                Console.WriteLine("*** Error: randoop could not find file {0}.", pageHeap);
-                System.Environment.Exit(1);
-            }
+            //pageHeap = randoopHome + @"\auxtools\pageheap.exe";
+            //if (!File.Exists(pageHeap))
+            //{
+            //    Console.WriteLine("*** Error: randoop could not find file {0}.", pageHeap);
+            //    System.Environment.Exit(1);
+            //}
 
 
             //defaultDhi = randoopHome + @"\auxtools\dhandler\I386\default.dhi";
