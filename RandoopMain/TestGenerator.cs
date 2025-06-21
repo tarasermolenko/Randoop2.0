@@ -31,15 +31,62 @@ namespace RandoopMain
                     instanceExpr = $"new {typeName}()";
                 }
 
+                // Skip compiler-generated
+                if (rClass.SimpleName.StartsWith("<"))
+                {
+                    continue;
+                }
+
+                // Skip generic
+                if (rClass.FullName.Contains("`"))
+                {
+                    continue;
+                }
+
                 foreach (var method in rClass.Methods)
                 {
 
-                    // Generate a unique test method name
-                    if(ignoreHandler.ShouldIgnore(simpleName, method.Name))
+                    // Skip compiler-generated
+                    if (method.Name.StartsWith("<"))
                     {
                         continue;
                     }
-                    string testName = $"Test_{simpleName}_{method.Name}";
+
+                    // Skips generic (template)
+                    if (method.Name.Contains("`"))
+                    {
+                        continue;
+                    }
+
+                    // Skip Abstract Methods
+                    if (!rClass.CanInstantiate && !method.IsStatic)
+                    {
+                        continue;
+                    }
+
+                    // Skip methods with ref/out/params for now
+                    if (method.ParameterTypes.Any(t => t.IsByRef || t.IsArray))
+                    {
+                        continue;
+                    }
+
+                    // Skip ignored methods
+                    if (ignoreHandler.ShouldIgnore(simpleName, method.Name))
+                    {
+                        continue;
+                    }
+
+                    // Generate unique method name using parameter types to prevent name collision from overloads
+                    string paramSuffix = string.Join("_", method.ParameterTypes.Select(t => t.Name));
+                    string testName;
+                    if (string.IsNullOrEmpty(paramSuffix))
+                    {
+                        testName = $"Test_{simpleName}_{method.Name}";
+                    }
+                    else
+                    {
+                        testName = $"Test_{simpleName}_{method.Name}_{paramSuffix}";
+                    }
 
                     // method declaration.
                     sb.AppendLine("        public void " + testName + "()"); // adding 2 indentaions ( for nice formatting in test file )
