@@ -20,6 +20,7 @@
         {
             foreach (var rawLine in lines)
             {
+                // test
                 var line = rawLine.Trim();
 
                 if (string.IsNullOrEmpty(line) || line.StartsWith("//"))
@@ -34,6 +35,7 @@
 
                 if (!ignoreMap.ContainsKey(className))
                     ignoreMap[className] = new HashSet<string>();
+                // no way
 
                 ignoreMap[className].Add(methodName);
             }
