@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using RandoopMain.Util;
+using System.Text;
 
 namespace RandoopMain
 {
@@ -8,6 +9,7 @@ namespace RandoopMain
         {
             var reflectedClasses = DllCollector.Collect(dllPath);
             var sb = new StringBuilder();
+            var ignoreHandler = new ignoreHandler();
 
             sb.AppendLine("using TestLibrary;");
             sb.AppendLine();
@@ -31,7 +33,12 @@ namespace RandoopMain
 
                 foreach (var method in rClass.Methods)
                 {
+
                     // Generate a unique test method name
+                    if(ignoreHandler.ShouldIgnore(simpleName, method.Name))
+                    {
+                        continue;
+                    }
                     string testName = $"Test_{simpleName}_{method.Name}";
 
                     // method declaration.

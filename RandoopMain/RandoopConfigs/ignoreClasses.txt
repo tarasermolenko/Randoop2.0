@@ -1,0 +1,9 @@
+// Lines starting with // will be ignored
+// Insert the class name and method to ignore in the format below
+// [ClassName MethodName]
+// Example: Test1 add
+// To ignore a class compleatly replace MethodName with *
+// 1 ignore per line
+
+Test2 *
+Test1 Add
