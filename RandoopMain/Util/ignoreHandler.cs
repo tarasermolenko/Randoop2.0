@@ -35,7 +35,6 @@
 
                 if (!ignoreMap.ContainsKey(className))
                     ignoreMap[className] = new HashSet<string>();
-                // no way
 
                 ignoreMap[className].Add(methodName);
             }

@@ -38,7 +38,8 @@ namespace RandoopMain
                         FullName = fullName,
                         SimpleName = type.Name,
                         IsStatic = type.IsAbstract && type.IsSealed,
-                        CanInstantiate = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Any()
+                        CanInstantiate = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Any(),
+                        Type = type
                     };
 
                     var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
@@ -56,7 +57,8 @@ namespace RandoopMain
                         {
                             Name = method.Name,
                             IsStatic = method.IsStatic,
-                            ParameterTypes = method.GetParameters().Select(p => p.ParameterType).ToList()
+                            ParameterTypes = method.GetParameters().Select(p => p.ParameterType).ToList(),
+                            MethodInfo = method
                         };
 
                         rClass.Methods.Add(rMethod);
@@ -96,6 +98,7 @@ namespace RandoopMain
         public bool IsStatic { get; set; }
         public bool CanInstantiate { get; set; }
         public List<ReflectedMethod> Methods { get; set; } = new();
+        public Type Type { get; set; }
     }
 
     public class ReflectedMethod
@@ -103,5 +106,6 @@ namespace RandoopMain
         public string Name { get; set; } = "";
         public bool IsStatic { get; set; }
         public List<Type> ParameterTypes { get; set; } = new();
+        public MethodInfo MethodInfo { get; set; }
     }
 }

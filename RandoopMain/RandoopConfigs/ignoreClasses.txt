@@ -5,5 +5,3 @@
 // To ignore a class compleatly replace MethodName with *
 // 1 ignore per line
 
-Test2 *
-Test1 Add
