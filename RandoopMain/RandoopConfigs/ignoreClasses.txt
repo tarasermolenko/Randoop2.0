@@ -4,4 +4,3 @@
 // Example: Test1 add
 // To ignore a class compleatly replace MethodName with *
 // 1 ignore per line
-

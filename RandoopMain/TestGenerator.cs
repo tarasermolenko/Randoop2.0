@@ -1,4 +1,6 @@
 ﻿using RandoopMain.Util;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace RandoopMain
@@ -15,6 +17,7 @@ namespace RandoopMain
             // Loop through each collected class
             foreach (var rClass in reflectedClasses)
             {
+                int classTestnumber = 1;
                 // Skip compiler-generated
                 if (rClass.SimpleName.StartsWith("<"))
                 {
@@ -73,9 +76,11 @@ namespace RandoopMain
                         testName = $"Test_{rClass.SimpleName}_{method.Name}_{paramSuffix}";
                     }
 
-                    string test = GenerateTestFileContent(rClass, method, testName);
-                    string outputdir = outputPath + $"Test{testCount}.cs";
-                    File.WriteAllText(outputPath, test.ToString());
+                    string test = GenerateTestFileContent(rClass, method, testName, classTestnumber);
+                    classTestnumber++;
+                    string outputFilePath = Path.Combine(outputPath, $"Test{testCount}.cs"); // Safe join
+                    Directory.CreateDirectory(outputPath); // Ensure folder exists
+                    File.WriteAllText(outputFilePath, test); // Write actual test content to file
                     testCount++;
 
 
@@ -85,18 +90,8 @@ namespace RandoopMain
             }
         }
 
-        private static string GetDummyArg(Type type)
-        {
-            if (type == typeof(int)) return "0";
-            if (type == typeof(double)) return "0.0";
-            if (type == typeof(string)) return "\"test\"";
-            if (type == typeof(bool)) return "false";
-            if (type == typeof(object)) return "new object()"; // If the parameter is an object, return a new object instance
-            if (type.IsValueType) return $"default({type.Name})"; // If it's any other value type (like a struct), return its default value
-            return "null"; //  when the parameter type is a reference type
-        }
 
-        private static string GenerateTestFileContent(ReflectedClass rClass, ReflectedMethod method, string testName)
+        private static string GenerateTestFileContent(ReflectedClass rClass, ReflectedMethod method, string testName,int number)
         {
             var typeName = rClass.FullName;
             var sb = new StringBuilder();
@@ -105,7 +100,7 @@ namespace RandoopMain
             sb.AppendLine();
             sb.AppendLine("namespace GeneratedTests");
             sb.AppendLine("{");
-            sb.AppendLine($"    public class {rClass.SimpleName}_Tests");
+            sb.AppendLine($"    public class {rClass.SimpleName}_Test{number}");
             sb.AppendLine("    {");
             sb.AppendLine("        [Fact]");
             sb.AppendLine($"        public void {testName}()");
@@ -115,12 +110,27 @@ namespace RandoopMain
             object instance = null;
             if (!method.IsStatic && rClass.CanInstantiate)
             {
-                instance = Activator.CreateInstance(rClass.Type);
-                sb.AppendLine($"            var instance = new {typeName}();");
+                ConstructorInfo? ctor = rClass.Type
+                .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(c => c.GetParameters().Length)
+                .FirstOrDefault();
+
+                if (ctor == null)
+                {
+                    return $"// Skipped {testName}: no usable constructor for {rClass.SimpleName}";
+                }
+
+                // Generate dummy values
+                var ctorParams = ctor.GetParameters();
+                var ctorArgs = ctorParams.Select(p => GetDummyArgValue(p.ParameterType)).ToArray();
+                var ctorArgLiterals = ctorParams.Select(p => GetDummyArg(p.ParameterType)).ToArray();
+                instance = ctor.Invoke(ctorArgs);
+                // instance = Activator.CreateInstance(rClass.Type);
+                sb.AppendLine($"            var instance = new {typeName}({string.Join(", ", ctorArgLiterals)});");
             }
 
             // Create dummy arguments
-            object[] dummyValues = method.ParameterTypes.Select(GetDummyArg).ToArray();
+            object[] dummyValues = method.ParameterTypes.Select(GetDummyArgValue).ToArray();
             string callArgs = string.Join(", ", method.ParameterTypes.Select(GetDummyArg));
 
             // Invoke the method and get result
@@ -142,6 +152,7 @@ namespace RandoopMain
                 sb.AppendLine("        }");
                 sb.AppendLine("    }");
                 sb.AppendLine("}");
+                Console.WriteLine($"[Skipped Test] {testName}: {e.GetType().Name} - {e.Message}");
                 return "";
             }
 
@@ -156,14 +167,49 @@ namespace RandoopMain
             {
                 callExpr = $"instance.{method.Name}({callArgs})";
             }
-
-            sb.AppendLine($"            var result = {callExpr};");
-            sb.AppendLine($"            Assert.Equal({expected}, result);");
+            if(method.MethodInfo.ReturnType == typeof(void))
+            {
+                sb.AppendLine($"            {callExpr};");
+            }
+            else
+            {
+                sb.AppendLine($"            var result = {callExpr};");
+                sb.AppendLine($"            Assert.Equal({expected}, result);");
+            }
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
             return sb.ToString();
+        }
+
+        private static string GetDummyArg(Type type)
+        {
+            if (type == typeof(int)) return "0";
+            if (type == typeof(double)) return "0.0";
+            if (type == typeof(string)) return "\"test\"";
+            if (type == typeof(bool)) return "false";
+            if (type == typeof(object)) return "new object()"; // If the parameter is an object, return a new object instance
+            if (type.IsValueType) return $"default({type.Name})"; // If it's any other value type (like a struct), return its default value
+            return "null"; //  when the parameter type is a reference type
+        }
+
+        private static object GetDummyArgValue(Type type)
+        {
+            if (type == typeof(int)) return 0;
+            if (type == typeof(double)) return 0.0;
+            if (type == typeof(string)) return "test";
+            if (type == typeof(bool)) return false;
+            if (type == typeof(char)) return 'a';
+            if (type == typeof(float)) return 0f;
+            if (type == typeof(long)) return 0L;
+            if (type == typeof(byte)) return (byte)0;
+            if (type == typeof(short)) return (short)0;
+            if (type == typeof(decimal)) return 0m;
+            if (type == typeof(DateTime)) return DateTime.Now;
+            if (type.IsEnum) return Enum.GetValues(type).GetValue(0)!;
+            if (type.IsValueType) return Activator.CreateInstance(type)!;
+            return null!;
         }
 
         private static string GetLiteralFromValue(object value)
