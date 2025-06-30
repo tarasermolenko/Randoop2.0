@@ -9,6 +9,8 @@ namespace RandoopMain
         public string Outcome { get; set; } = ""; // "PASS", "FAIL", "SKIP"
         public string? FailureReason { get; set; }
         public List<string> ParameterValues { get; set; } = new();
+        public string? ReturnValue { get; set; }
+        public string? ReturnType { get; set; }
     }
 
     public class TestRunner
@@ -51,7 +53,9 @@ namespace RandoopMain
                                     ClassName = rClass.SimpleName,
                                     MethodName = method.Name,
                                     Outcome = "SKIP",
-                                    FailureReason = "no public constructor"
+                                    FailureReason = "no public constructor",
+                                    ReturnType = method.ReturnType.Name,
+                                    ReturnValue = null
                                 });
                                 skipped++;
                                 continue;
@@ -65,7 +69,9 @@ namespace RandoopMain
                                     ClassName = rClass.SimpleName,
                                     MethodName = method.Name,
                                     Outcome = "SKIP",
-                                    FailureReason = "could not instantiate with dummy arguments"
+                                    FailureReason = "could not instantiate with dummy arguments",
+                                    ReturnType = method.ReturnType.Name,
+                                    ReturnValue = null
                                 });
                                 skipped++;
                                 continue;
@@ -76,22 +82,33 @@ namespace RandoopMain
                         object[] args = PrepareArguments(parameters);
 
                         // Capture parameter values as strings
-                        var paramStrings = args.Select(arg =>
+                        var paramStrings = new List<string>();
+                        foreach (var arg in args)
                         {
                             if (arg == null)
-                                return "null";
+                            {
+                                paramStrings.Add("null");
+                            }
                             else
                             {
-                                var str = arg.ToString();
-                                return str ?? "null";
+                                string? str = arg.ToString();
+                                if (str == null)
+                                {
+                                    paramStrings.Add("null");
+                                }
+                                else
+                                {
+                                    paramStrings.Add(str);
+                                }
                             }
-                        }).ToList();
+                        }
 
-                        // Invoke method and get return value
                         object? returnValue = method.Invoke(instance, args);
 
-                        // Check return value matches return type
+                        string? returnValueString = (returnValue == null) ? "null" : returnValue.ToString();
+
                         var returnType = method.ReturnType;
+
                         if (returnType != typeof(void))
                         {
                             // Null returned for non-nullable value type
@@ -103,7 +120,9 @@ namespace RandoopMain
                                     MethodName = method.Name,
                                     Outcome = "FAIL",
                                     FailureReason = $"Method returned null but return type is non-nullable {returnType.Name}",
-                                    ParameterValues = paramStrings
+                                    ParameterValues = paramStrings,
+                                    ReturnType = returnType.Name,
+                                    ReturnValue = returnValueString
                                 });
                                 failed++;
                                 continue;
@@ -118,7 +137,9 @@ namespace RandoopMain
                                     MethodName = method.Name,
                                     Outcome = "FAIL",
                                     FailureReason = $"Return value type {returnValue.GetType().Name} does not match method return type {returnType.Name}",
-                                    ParameterValues = paramStrings
+                                    ParameterValues = paramStrings,
+                                    ReturnType = returnType.Name,
+                                    ReturnValue = returnValueString
                                 });
                                 failed++;
                                 continue;
@@ -136,7 +157,9 @@ namespace RandoopMain
                                         MethodName = method.Name,
                                         Outcome = "FAIL",
                                         FailureReason = "Returned float.NaN or Infinity",
-                                        ParameterValues = paramStrings
+                                        ParameterValues = paramStrings,
+                                        ReturnType = returnType.Name,
+                                        ReturnValue = returnValueString
                                     });
                                     failed++;
                                     continue;
@@ -153,7 +176,9 @@ namespace RandoopMain
                                         MethodName = method.Name,
                                         Outcome = "FAIL",
                                         FailureReason = "Returned double.NaN or Infinity",
-                                        ParameterValues = paramStrings
+                                        ParameterValues = paramStrings,
+                                        ReturnType = returnType.Name,
+                                        ReturnValue = returnValueString
                                     });
                                     failed++;
                                     continue;
@@ -167,28 +192,24 @@ namespace RandoopMain
                             ClassName = rClass.SimpleName,
                             MethodName = method.Name,
                             Outcome = "PASS",
-                            ParameterValues = paramStrings
+                            ParameterValues = paramStrings,
+                            ReturnType = returnType.Name,
+                            ReturnValue = returnValueString
                         });
                         passed++;
                     }
                     catch (TargetInvocationException ex)
                     {
-                        string failureReason;
-                        if (ex.InnerException != null)
-                        {
-                            failureReason = ex.InnerException.GetType().Name;
-                        }
-                        else
-                        {
-                            failureReason = "Exception";
-                        }
+                        string failureReason = ex.InnerException != null ? ex.InnerException.GetType().Name : "Exception";
 
                         results.Add(new TestResult
                         {
                             ClassName = rClass.SimpleName,
                             MethodName = method.Name,
                             Outcome = "FAIL",
-                            FailureReason = failureReason
+                            FailureReason = failureReason,
+                            ReturnType = rMethod.Method.ReturnType.Name,
+                            ReturnValue = null
                         });
                         failed++;
                     }
@@ -199,7 +220,9 @@ namespace RandoopMain
                             ClassName = rClass.SimpleName,
                             MethodName = method.Name,
                             Outcome = "FAIL",
-                            FailureReason = ex.Message
+                            FailureReason = ex.Message,
+                            ReturnType = rMethod.Method.ReturnType.Name,
+                            ReturnValue = null
                         });
                         failed++;
                     }

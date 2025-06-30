@@ -26,12 +26,37 @@
 
             foreach (var result in results)
             {
-                string paramList = result.ParameterValues.Count > 0
-                    ? $"(Parameters: {string.Join(", ", result.ParameterValues)})"
-                    : "(No parameters)";
+                string paramList;
+                if (result.ParameterValues.Count > 0)
+                {
+                    paramList = "(Parameters: " + string.Join(", ", result.ParameterValues) + ")";
+                }
+                else
+                {
+                    paramList = "(No parameters)";
+                }
 
-                Console.WriteLine($"[{result.Outcome}] {result.ClassName}.{result.MethodName} {paramList} " +
-                                  $"{(result.Outcome == "FAIL" || result.Outcome == "SKIP" ? "- " + result.FailureReason : "")}");
+                string returnInfo = "";
+                if (result.ReturnType != null && result.ReturnType != "")
+                {
+                    returnInfo = " (Returns: " + result.ReturnType;
+                    if (result.ReturnValue != null && result.ReturnValue != "")
+                    {
+                        returnInfo += " = " + result.ReturnValue;
+                    }
+                    returnInfo += ")";
+                }
+
+                string failureInfo = "";
+                if (result.Outcome == "FAIL" || result.Outcome == "SKIP")
+                {
+                    if (result.FailureReason != null && result.FailureReason != "")
+                    {
+                        failureInfo = "- " + result.FailureReason;
+                    }
+                }
+
+                Console.WriteLine("[" + result.Outcome + "] " + result.ClassName + "." + result.MethodName + " " + paramList + returnInfo + " " + failureInfo);
             }
 
         }
