@@ -4,7 +4,9 @@
     {
         public int Add(int a, int b) => a + b;
 
-        public double Divide(double numerator, double denominator) => numerator / denominator;
+        public double DivideFloat(double numerator, double denominator) => numerator / denominator;
+
+        public int DivideInt(int numerator, int denominator) => numerator / denominator;
 
         public string Echo(string message) => $"Echo: {message}";
 

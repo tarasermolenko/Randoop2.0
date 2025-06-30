@@ -2,7 +2,7 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test8Derived_Test2
+    public class Test8Derived_Test14
     {
         [Fact]
         public void Test_Test8Derived_VirtualMethod()

@@ -2,7 +2,7 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test4_Test1
+    public class Test4_Test9
     {
         [Fact]
         public void Test_Test4_StaticMethod()

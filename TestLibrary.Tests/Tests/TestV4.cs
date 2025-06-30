@@ -2,7 +2,7 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test2_Test1
+    public class Test2_Test4
     {
         [Fact]
         public void Test_Test2_ReturnString()

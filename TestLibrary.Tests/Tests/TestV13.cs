@@ -2,7 +2,7 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test8Derived_Test1
+    public class Test8Derived_Test13
     {
         [Fact]
         public void Test_Test8Derived_AbstractMethod()

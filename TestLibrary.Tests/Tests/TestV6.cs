@@ -2,13 +2,13 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test3_Test3
+    public class Test3_Test6
     {
         [Fact]
-        public void Test_Test3_Overload_String()
+        public void Test_Test3_Overload()
         {
             var instance = new TestLibrary.Test3(0);
-            instance.Overload("test");
+            instance.Overload();
         }
     }
 }

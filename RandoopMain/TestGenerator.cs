@@ -7,6 +7,7 @@ namespace RandoopMain
 {
     public class TestGenerator
     {
+        /*
         public static void GenerateTests(string dllPath, string outputPath)
         {
             var reflectedClasses = DllCollector.Collect(dllPath);
@@ -221,7 +222,9 @@ namespace RandoopMain
             if (value is double d) return d.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
             if (value is float f) return f.ToString("G", System.Globalization.CultureInfo.InvariantCulture) + "f";
             if (value is int or long or short or byte) return value.ToString();
-            return $"/* unsupported result type: {value.GetType().Name} */";
-        }
+            return $"/* unsupported result type: {value.GetType().Name} ";*/
     }
+    
 }
+
+
