@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -15,9 +16,25 @@ namespace RandoopMain
         public string constructedTest { get; set; } = "";
     }
 
+    public class TestVariables
+    {
+        public string name { get; set; } = "";
+        public Type type;
+        public object instance;
+        public string construction;
+        public bool isOut = false;
+    }
+
+
+
     public class TestRunner
     {
-        public static List<TestResult> RunTests(string dllPath)
+
+        private static Random random = new();
+        public List<TestVariables> testVariables = [];
+        public List<string> instructions = [];
+
+        public List<TestResult> RunTests(string dllPath)
         {
             var classes = DllCollector.Collect(dllPath);
 
@@ -92,7 +109,7 @@ namespace RandoopMain
 
                             (instance, instanceArgs) = CreateInstanceWithDummyArgs(type);
                             //========================================================================
-                            sb.AppendLine($"            var instance = new {type.FullName}({instanceArgs});");
+                            instructions.Add($"var instance = new {type.FullName}({instanceArgs})");
                             //========================================================================
                             if (instance == null)
                             {
@@ -127,11 +144,28 @@ namespace RandoopMain
                         object? returnValue = method.Invoke(instance, args);
 
                         var paramStringsformated = args
-                        .Select((arg, i) => FormatArgForCode(arg, parameters[i].ParameterType))
+                        .Select((arg, i) => FormatArgForCode(arg, parameters[i].ParameterType, parameters[i]))
                         .ToList();
 
+                        for (int i = 0; i < parameters.Length; i++)
+                        {
+                            var p = parameters[i];
 
-                        string callExpr = "";
+                            if (p.IsOut)
+                            {
+                                paramStringsformated[i] = "out " + paramStringsformated[i];
+                                continue;
+                            }
+
+                            if (p.ParameterType.IsByRef)
+                            {
+                                paramStringsformated[i] = "ref " + paramStringsformated[i];
+                                continue;
+                            }
+                        }
+
+
+                            string callExpr = "";
                         if (method.IsStatic)
                         {
                             callExpr = $"{typeName}.{method.Name}({string.Join(",", paramStringsformated)})";
@@ -145,17 +179,32 @@ namespace RandoopMain
 
                         // Check return value matches return type
                         var returnType = method.ReturnType;
+                        //===================================================================================
+                        foreach(var vari in testVariables)
+                        {
+                            sb.AppendLine($"            {vari.construction};");
+                            
+                                }
+
+
 
                         if (method.ReturnType == typeof(void))
                         {
-                            sb.AppendLine($"            {callExpr};");
+                            instructions.Add($"{callExpr}");
                         }
                         else
                         {
-                            sb.AppendLine($"            var result = {callExpr};");
+                            instructions.Add($"var result = {callExpr}");
                             string formattedReturnValue = FormatArgForCode(returnValue, returnType);
-                            sb.AppendLine($"            Assert.Equal({formattedReturnValue}, result);");
+                            instructions.Add($"Assert.Equal({formattedReturnValue}, result)");
                         }
+
+                        foreach (var instruction in instructions)
+                        {
+                            sb.AppendLine($"            {instruction};");
+                        }
+
+                        //===================================================================================
                         if (returnType != typeof(void))
                         {
                             // Null returned for non-nullable value type
@@ -227,9 +276,14 @@ namespace RandoopMain
                         
 
                         // Passed all checks
+                        //=======================================================================
                         sb.AppendLine("        }");
                         sb.AppendLine("    }");
                         sb.AppendLine("}");
+                        testVariables = [];
+                        instructions = [];
+                        //========================================================================
+
                         results.Add(new TestResult
                         {
                             ClassName = rClass.SimpleName,
@@ -282,7 +336,7 @@ namespace RandoopMain
             return results;
         }
 
-        private static object[] PrepareArguments(ParameterInfo[] parameters)
+        private object[] PrepareArguments(ParameterInfo[] parameters)
         {
             var args = new object[parameters.Length];
 
@@ -293,6 +347,13 @@ namespace RandoopMain
                 if (p.IsOut)
                 {
                     args[i] = GetDefault(p.ParameterType.GetElementType() ?? p.ParameterType);
+                    TestVariables tempvariable = new TestVariables();
+                    tempvariable.type = p.ParameterType.GetElementType()!;
+                    tempvariable.name = $"v{testVariables.Count}";
+                    tempvariable.instance = args[i];
+                    tempvariable.construction = $"{p.ParameterType.GetElementType()} {tempvariable.name}";
+                    tempvariable.isOut = true ;
+                    testVariables.Add( tempvariable );
                     continue;
                 }
 
@@ -319,20 +380,69 @@ namespace RandoopMain
             return args;
         }
 
-        private static object GetDummyArg(Type type)
+        private object GetDummyArg(Type type)
         {
-            if (type == typeof(int)) return 0;
-            if (type == typeof(double)) return 0.0;
-            if (type == typeof(float)) return 0.0f;
-            if (type == typeof(string)) return "test";
-            if (type == typeof(bool)) return false;
-            if (type == typeof(object)) return new object();
+            TestVariables tempvariable = new TestVariables();
+            tempvariable.type = type;
+            tempvariable.name = $"v{testVariables.Count}";
+            if (type == typeof(int))
+            {
+                int vtemp = random.Next(-1000, 1000);
+                tempvariable.instance = vtemp;
+                tempvariable.construction = $"int {tempvariable.name} = {vtemp}";
+                testVariables.Add(tempvariable);
+                return vtemp;
+            }
+
+            if (type == typeof(double))
+            {
+                double vtemp = random.NextDouble() * (random.Next(0, 2) == 0 ? 1 : -1) * 1000;
+                tempvariable.instance = vtemp;
+                tempvariable.construction = $"double {tempvariable.name} = {vtemp}";
+                testVariables.Add(tempvariable);
+                return vtemp;
+            }
+
+            if (type == typeof(float))
+                return (float)(random.NextDouble() * (random.Next(0, 2) == 0 ? 1 : -1) * 1000);
+
+            if (type == typeof(string))
+            {
+                string vtemp = GenerateRandomString();
+                string formated = $"\"{vtemp.Replace("\"", "\\\"")}\"";
+                tempvariable.instance = vtemp;
+                tempvariable.construction = $"string {tempvariable.name} = {formated}";
+                testVariables.Add(tempvariable);
+                return vtemp;
+            }
+
+            if (type == typeof(bool))
+            {
+                bool vtemp = random.Next(2) == 0;
+                tempvariable.instance = vtemp;
+                string formated = vtemp ? "true" : "false";
+                tempvariable.construction = $"bool {tempvariable.name} = {formated}";
+                testVariables.Add(tempvariable);
+                return vtemp;
+            }
+
+            if (type == typeof(object)) 
+            {
+                object vtemp = new object();
+                tempvariable.instance = vtemp;
+                tempvariable.construction = $"object {tempvariable.name} = new object();";
+                testVariables.Add(tempvariable);
+                return vtemp;
+            }
 
             if (type.IsValueType)
             {
                 var instance = Activator.CreateInstance(type);
                 if (instance == null)
                     throw new InvalidOperationException($"Could not create instance of value type {type.FullName}.");
+                tempvariable.construction = $"{type.FullName} {tempvariable.name} = {type.FullName}();";
+                tempvariable.instance = instance;
+                testVariables.Add(tempvariable);
                 return instance;
             }
 
@@ -341,11 +451,33 @@ namespace RandoopMain
                 var elementType = type.GetElementType()!;
                 var arrayInstance = Array.CreateInstance(elementType, 1);
                 arrayInstance.SetValue(GetDummyArg(elementType), 0);
+
+                tempvariable.instance = arrayInstance;
+                string[] Args = [];
+                for(int i = 0; i < arrayInstance.Length; i++)
+                {
+                    Args.Append(FormatArgForCode(arrayInstance.GetValue(i), elementType));
+                }
+
+                tempvariable.construction = $"{elementType.FullName}[] {tempvariable.name} = new {elementType.FullName}[] {{ {string.Join(",",Args)} }};";
+                testVariables.Add(tempvariable);
                 return arrayInstance;
             }
 
             // For reference types
             return null!;
+        }
+
+        private static string GenerateRandomString()
+        {
+            int length = random.Next(0, 15);
+            const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            char[] result = new char[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = chars[random.Next(0,chars.Length)];
+            }
+            return new string(result);
         }
 
         private static object GetDefault(Type type)
@@ -361,7 +493,7 @@ namespace RandoopMain
             throw new NotSupportedException($"No default value for reference type {type.FullName}");
         }
 
-        private static (object? instance, string args) CreateInstanceWithDummyArgs(Type type)
+        private (object? instance, string args) CreateInstanceWithDummyArgs(Type type)
         {
             var constructors = type.GetConstructors()
                                    .OrderBy(c => c.GetParameters().Length);
@@ -385,10 +517,41 @@ namespace RandoopMain
             return (null, "");
         }
 
-        private static string FormatArgForCode(object? arg, Type type)
+        private string FormatArgForCode(object? arg, Type type, ParameterInfo? param = null)
         {
+
             if (arg == null)
                 return "null";
+
+            if (type.IsByRef)
+            {
+                var elementType = type.GetElementType()!;
+                bool isOut = param?.IsOut == true;
+
+                foreach (var vari in testVariables)
+                {
+                    if (vari.type != elementType)
+                        continue;
+                    if (isOut && vari.isOut)
+                        return vari.name;
+
+                    if (!isOut && !vari.isOut)
+                        return vari.name;
+                }
+
+                return "null";
+            }
+
+            foreach (var vari in testVariables)
+            {
+                if(vari.type == type)
+                {
+                    if(vari.instance.Equals(arg))
+                    {
+                        return vari.name;
+                    }
+                }
+            }
 
             if (type == typeof(string))
                 return $"\"{arg.ToString()?.Replace("\"", "\\\"")}\"";
@@ -411,13 +574,11 @@ namespace RandoopMain
             if (type.IsEnum)
                 return $"{type.FullName}.{arg}";
 
-            // ✅ New block: format primitive value types normally
             if (type.IsPrimitive || type == typeof(decimal))
                 return arg.ToString()!;
 
             if (type.IsValueType)
             {
-                // Custom structs (non-primitive value types)
                 return $"new {type.FullName}()";
             }
 
@@ -433,7 +594,9 @@ namespace RandoopMain
                 return $"new {elementType.FullName}[] {{ {string.Join(", ", elements)} }}";
             }
 
-            return "null";
+            
+
+            return "null2";
         }
     }
 }

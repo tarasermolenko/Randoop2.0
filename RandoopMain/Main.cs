@@ -22,7 +22,9 @@
             // TestGenerator.GenerateTests(dllPath, outputPath);
 
             //Console.WriteLine($"Tests generated and saved to {outputPath}");
-            List<TestResult> results = TestRunner.RunTests(dllPath);
+            TestRunner runner = new TestRunner();
+
+            List<TestResult> results = runner.RunTests(dllPath);
             int testCount = 0;
             foreach (var result in results)
             {
