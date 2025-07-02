@@ -54,7 +54,7 @@ namespace RandoopMain
                 {
                     var method = rMethod.Method;
 
-                    if (method.Name.StartsWith("<") || method.ContainsGenericParameters)
+                    if (method.Name.StartsWith("<") || method.ContainsGenericParameters || !method.IsPublic)
                         continue;
                     //==================================================================================
                     var parameters = method.GetParameters();
