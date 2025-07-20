@@ -25,7 +25,17 @@ namespace RandoopMain
         public bool isOut = false;
     }
 
+    public class MethodToTest
+    {
+        public ReflectedClass Class { get; set; }
+        public ReflectedMethod method { get; set; }
 
+        public MethodToTest(ReflectedClass c, ReflectedMethod m)
+        {
+            Class = c;
+            method = m;
+        }
+    }
 
     public class TestRunner
     {
@@ -36,306 +46,319 @@ namespace RandoopMain
 
         public List<TestResult> RunTests(string dllPath)
         {
+            int maxTests = 50;
+            
             var classes = DllCollector.Collect(dllPath);
 
-            int total = 0, passed = 0, failed = 0, skipped = 0;
             var results = new List<TestResult>();
 
-            int testCount = 0;
-
+            List<MethodToTest> methodToTest = new List<MethodToTest>();
             foreach (var rClass in classes)
             {
-                var type = rClass.Type;
-
-                if (type.Name.StartsWith("<") || type.ContainsGenericParameters)
-                    continue;
-
                 foreach (var rMethod in rClass.Methods)
                 {
-                    var method = rMethod.Method;
-
-                    if (method.Name.StartsWith("<") || method.ContainsGenericParameters || !method.IsPublic)
-                        continue;
-                    //==================================================================================
-                    var parameters = method.GetParameters();
-
-                    string paramSuffix = string.Join("_", parameters.Select(t => t.Name));
-                    string testName;
-                    if (string.IsNullOrEmpty(paramSuffix))
-                    {
-                        testName = $"Test_{rClass.SimpleName}_{method.Name}";
-                    }
-                    else
-                    {
-                        testName = $"Test_{rClass.SimpleName}_{method.Name}_{paramSuffix}";
-                    }
-
-                    var typeName = rClass.FullName;
-                    var sb = new StringBuilder();
-
-                    sb.AppendLine("using Xunit;");
-                    sb.AppendLine();
-                    sb.AppendLine("namespace GeneratedTests");
-                    sb.AppendLine("{");
-                    sb.AppendLine($"    public class {rClass.SimpleName}_Test{testCount}");
-                    sb.AppendLine("    {");
-                    sb.AppendLine("        [Fact]");
-                    sb.AppendLine($"        public void {testName}()");
-                    sb.AppendLine("        {");
-
-
-                    //=====================================================================
-                    total++;
-
-                    try
-                    {
-                        object? instance = null;
-                        string instanceArgs = "";
-
-                        if (!rMethod.IsStatic)
-                        {
-                            if (!rClass.CanInstantiate)
-                            {
-                                results.Add(new TestResult
-                                {
-                                    ClassName = rClass.SimpleName,
-                                    MethodName = method.Name,
-                                    Outcome = "SKIP",
-                                    FailureReason = "no public constructor"
-                                });
-                                skipped++;
-                                continue;
-                            }
-
-                            (instance, instanceArgs) = CreateInstanceWithDummyArgs(type);
-                            //========================================================================
-                            instructions.Add($"var instance = new {type.FullName}({instanceArgs})");
-                            //========================================================================
-                            if (instance == null)
-                            {
-                                results.Add(new TestResult
-                                {
-                                    ClassName = rClass.SimpleName,
-                                    MethodName = method.Name,
-                                    Outcome = "SKIP",
-                                    FailureReason = "could not instantiate with dummy arguments"
-                                });
-                                skipped++;
-                                continue;
-                            }
-                        }
-
-                        // Prepare arguments, including ref/out/params support
-                        object[] args = PrepareArguments(parameters);
-
-                        // Capture parameter values as strings
-                        var paramStrings = args.Select(arg =>
-                        {
-                            if (arg == null)
-                                return "null";
-                            else
-                            {
-                                var str = arg.ToString();
-                                return str ?? "null";
-                            }
-                        }).ToList();
-
-                        // Invoke method and get return value
-                        object? returnValue = method.Invoke(instance, args);
-
-                        var paramStringsformated = args
-                        .Select((arg, i) => FormatArgForCode(arg, parameters[i].ParameterType, parameters[i]))
-                        .ToList();
-
-                        for (int i = 0; i < parameters.Length; i++)
-                        {
-                            var p = parameters[i];
-
-                            if (p.IsOut)
-                            {
-                                paramStringsformated[i] = "out " + paramStringsformated[i];
-                                continue;
-                            }
-
-                            if (p.ParameterType.IsByRef)
-                            {
-                                paramStringsformated[i] = "ref " + paramStringsformated[i];
-                                continue;
-                            }
-                        }
-
-
-                            string callExpr = "";
-                        if (method.IsStatic)
-                        {
-                            callExpr = $"{typeName}.{method.Name}({string.Join(",", paramStringsformated)})";
-                        }
-                        else
-                        {
-                            callExpr = $"instance.{method.Name}({string.Join(",", paramStringsformated)})";
-                        }
-                        
-
-
-                        // Check return value matches return type
-                        var returnType = method.ReturnType;
-                        //===================================================================================
-                        foreach(var vari in testVariables)
-                        {
-                            sb.AppendLine($"            {vari.construction};");
-                            
-                                }
-
-
-
-                        if (method.ReturnType == typeof(void))
-                        {
-                            instructions.Add($"{callExpr}");
-                        }
-                        else
-                        {
-                            instructions.Add($"var result = {callExpr}");
-                            string formattedReturnValue = FormatArgForCode(returnValue, returnType);
-                            instructions.Add($"Assert.Equal({formattedReturnValue}, result)");
-                        }
-
-                        foreach (var instruction in instructions)
-                        {
-                            sb.AppendLine($"            {instruction};");
-                        }
-
-                        //===================================================================================
-                        if (returnType != typeof(void))
-                        {
-                            // Null returned for non-nullable value type
-                            if (returnValue == null && returnType.IsValueType && Nullable.GetUnderlyingType(returnType) == null)
-                            {
-                                results.Add(new TestResult
-                                {
-                                    ClassName = rClass.SimpleName,
-                                    MethodName = method.Name,
-                                    Outcome = "FAIL",
-                                    FailureReason = $"Method returned null but return type is non-nullable {returnType.Name}",
-                                    ParameterValues = paramStrings
-                                });
-                                failed++;
-                                continue;
-                            }
-
-                            // Return value type mismatch
-                            if (returnValue != null && !returnType.IsAssignableFrom(returnValue.GetType()))
-                            {
-                                results.Add(new TestResult
-                                {
-                                    ClassName = rClass.SimpleName,
-                                    MethodName = method.Name,
-                                    Outcome = "FAIL",
-                                    FailureReason = $"Return value type {returnValue.GetType().Name} does not match method return type {returnType.Name}",
-                                    ParameterValues = paramStrings
-                                });
-                                failed++;
-                                continue;
-                            }
-
-                            // Check for NaN or Infinity if return type is float or double
-                            if (returnType == typeof(float))
-                            {
-                                float floatValue = (float)returnValue!;
-                                if (float.IsNaN(floatValue) || float.IsInfinity(floatValue))
-                                {
-                                    results.Add(new TestResult
-                                    {
-                                        ClassName = rClass.SimpleName,
-                                        MethodName = method.Name,
-                                        Outcome = "FAIL",
-                                        FailureReason = "Returned float.NaN or Infinity",
-                                        ParameterValues = paramStrings
-                                    });
-                                    failed++;
-                                    continue;
-                                }
-                            }
-                            else if (returnType == typeof(double))
-                            {
-                                double doubleValue = (double)returnValue!;
-                                if (double.IsNaN(doubleValue) || double.IsInfinity(doubleValue))
-                                {
-                                    results.Add(new TestResult
-                                    {
-                                        ClassName = rClass.SimpleName,
-                                        MethodName = method.Name,
-                                        Outcome = "FAIL",
-                                        FailureReason = "Returned double.NaN or Infinity",
-                                        ParameterValues = paramStrings
-                                    });
-                                    failed++;
-                                    continue;
-                                }
-                            }
-                        }
-                        
-
-                        // Passed all checks
-                        //=======================================================================
-                        sb.AppendLine("        }");
-                        sb.AppendLine("    }");
-                        sb.AppendLine("}");
-                        testVariables = [];
-                        instructions = [];
-                        //========================================================================
-
-                        results.Add(new TestResult
-                        {
-                            ClassName = rClass.SimpleName,
-                            MethodName = method.Name,
-                            Outcome = "PASS",
-                            ParameterValues = paramStrings,
-                            constructedTest = sb.ToString()
-                        });
-                        passed++;
-                        testCount++;
-                    }
-                    catch (TargetInvocationException ex)
-                    {
-                        string failureReason;
-                        if (ex.InnerException != null)
-                        {
-                            failureReason = ex.InnerException.GetType().Name;
-                        }
-                        else
-                        {
-                            failureReason = "Exception";
-                        }
-
-                        results.Add(new TestResult
-                        {
-                            ClassName = rClass.SimpleName,
-                            MethodName = method.Name,
-                            Outcome = "FAIL",
-                            FailureReason = failureReason
-                        });
-                        failed++;
-                    }
-                    catch (Exception ex)
-                    {
-                        results.Add(new TestResult
-                        {
-                            ClassName = rClass.SimpleName,
-                            MethodName = method.Name,
-                            Outcome = "FAIL",
-                            FailureReason = ex.Message
-                        });
-                        failed++;
-                    }
+                    methodToTest.Add(new MethodToTest(rClass, rMethod));
                 }
             }
 
-            // summary
-            System.Console.WriteLine($"\nSummary: {passed}/{total} passed, {failed} failed, {skipped} skipped.");
+            if(methodToTest.Count == 0) return results;
+
+            int methodCount = methodToTest.Count;
+            int testCount = 0;
+            for (int i = 0;  i < maxTests;)
+            {
+                int testMethodIndex = random.Next(0, methodCount);
+                TestResult TResult = makeTest(methodToTest[testMethodIndex]);
+                if(TResult.Outcome == "PASS")
+                {
+                    TResult = writeTests(TResult, methodToTest[testMethodIndex], testCount);
+                    i++;
+                    testCount++;
+                }
+                results.Add(TResult);
+
+            }
 
             return results;
         }
 
+        private TestResult writeTests(TestResult test, MethodToTest methodToTest, int testNumber)
+        {
+            var rClass = methodToTest.Class;
+            var rMethod = methodToTest.method;
+            var method = rMethod.Method;
+
+            var sb = new StringBuilder();
+
+            string testName = $"Test_{rClass.SimpleName}_{method.Name}_{testNumber.ToString()}";
+
+            sb.AppendLine("using Xunit;");
+            sb.AppendLine();
+            sb.AppendLine("namespace GeneratedTests");
+            sb.AppendLine("{");
+            sb.AppendLine($"    public class {rClass.SimpleName}_Test{testNumber.ToString()}");
+            sb.AppendLine("    {");
+            sb.AppendLine("        [Fact]");
+            sb.AppendLine($"        public void {testName}()");
+            sb.AppendLine("        {");
+
+            sb.AppendLine(test.constructedTest);
+
+
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+
+            test.constructedTest = sb.ToString();
+
+            return test;
+        }
+        
+        private TestResult makeTest(MethodToTest methodToTest)
+        {
+            var result = new TestResult();
+
+            var rClass = methodToTest.Class;
+            var rMethod = methodToTest.method;
+            var type = rClass.Type;
+            var method = rMethod.Method;
+            if (type.Name.StartsWith("<") || type.ContainsGenericParameters)
+            {
+                result.ClassName = rClass.SimpleName;
+                result.MethodName = method.Name;
+                result.Outcome = "SKIP";
+                result.FailureReason = "Generic Types not supported";
+                return result;
+            }
+
+            if (method.Name.StartsWith("<") || method.ContainsGenericParameters || !method.IsPublic)
+            {
+                result.ClassName = rClass.SimpleName;
+                result.MethodName = method.Name;
+                result.Outcome = "SKIP";
+                result.FailureReason = "Generic Types not supported";
+                return result;
+            }
+
+            var parameters = method.GetParameters();
+            string paramSuffix = string.Join("_", parameters.Select(t => t.Name));
+            string testName;
+            if (string.IsNullOrEmpty(paramSuffix)){
+                testName = $"Test_{rClass.SimpleName}_{method.Name}";
+            }
+            else{
+                testName = $"Test_{rClass.SimpleName}_{method.Name}_{paramSuffix}";
+            }
+
+            var typeName = rClass.FullName;
+            var sb = new StringBuilder();
+
+                    //=====================================================================
+            try{
+                object? instance = null;
+                string instanceArgs = "";
+
+                if (!rMethod.IsStatic)
+                {
+                    if (!rClass.CanInstantiate)
+                    {
+                        result.ClassName = rClass.SimpleName;
+                        result.MethodName = method.Name;
+                        result.Outcome = "SKIP";
+                        result.FailureReason = "no public constructor";
+                        return result;
+                    }
+                    (instance, instanceArgs) = CreateInstanceWithDummyArgs(type);
+                    //========================================================================
+                    instructions.Add($"var instance = new {type.FullName}({instanceArgs})");
+                    //========================================================================
+                }
+
+
+                if (instance == null)
+                {
+                    result.ClassName = rClass.SimpleName;
+                    result.MethodName = method.Name;
+                    result.Outcome = "SKIP";
+                    result.FailureReason = "could not instantiate with dummy arguments";
+                    return result;
+                }
+
+                        // Prepare arguments, including ref/out/params support
+                object[] args = PrepareArguments(parameters);
+
+                        // Capture parameter values as strings
+                        
+                    
+                var paramStrings = args.Select(arg =>
+                {
+                    if (arg == null)
+                        return "null";    
+                    else
+                    {
+                        var str = arg.ToString();
+                        return str ?? "null";
+                    }
+                }).ToList();
+
+                        // Invoke method and get return value
+                object? returnValue = method.Invoke(instance, args);
+
+                var paramStringsformated = args.Select((arg, i) => FormatArgForCode(arg, parameters[i].ParameterType, parameters[i])).ToList();
+
+                        
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    var p = parameters[i];
+                            
+                    if (p.IsOut)        
+                    {        
+                        paramStringsformated[i] = "out " + paramStringsformated[i];        
+                        continue;
+
+                    }
+
+                    if (p.ParameterType.IsByRef)
+                    {
+                        paramStringsformated[i] = "ref " + paramStringsformated[i];
+                        continue;
+                    }
+                }        
+                string callExpr = "";
+                        
+                if (method.IsStatic){        
+                    callExpr = $"{typeName}.{method.Name}({string.Join(",", paramStringsformated)})";
+                }
+                else{        
+                    callExpr = $"instance.{method.Name}({string.Join(",", paramStringsformated)})";
+                }
+
+
+
+                        // Check return value matches return type
+                var returnType = method.ReturnType;
+                        //===================================================================================
+                foreach (var vari in testVariables)
+                {
+                    sb.AppendLine($"            {vari.construction};");        
+                }
+
+
+
+                if (method.ReturnType == typeof(void))
+                {
+                    instructions.Add($"{callExpr}");
+                }
+                else{     
+                    instructions.Add($"var result = {callExpr}");
+                    string formattedReturnValue = FormatArgForCode(returnValue, returnType);
+                    instructions.Add($"Assert.Equal({formattedReturnValue}, result)");
+                }
+                foreach (var instruction in instructions)
+                {
+                    sb.AppendLine($"            {instruction};");
+                }
+
+                        //===================================================================================
+                        
+                if (returnType != typeof(void)) 
+                {
+                    // Null returned for non-nullable value type
+
+                    if (returnValue == null && returnType.IsValueType && Nullable.GetUnderlyingType(returnType) == null)
+                    {
+                        result.ClassName = rClass.SimpleName;
+                        result.MethodName = method.Name;
+                        result.Outcome = "FAIL";
+                        result.FailureReason = $"Method returned null but return type is non-nullable {returnType.Name}";
+                        result.ParameterValues = paramStrings;
+                        return result;
+
+                    }
+                    // Return value type mismatch
+                    if (returnValue != null && !returnType.IsAssignableFrom(returnValue.GetType()))
+                    {
+                        result.ClassName = rClass.SimpleName;
+                        result.MethodName = method.Name;
+                        result.Outcome = "FAIL";
+                        result.FailureReason = $"Return value type {returnValue.GetType().Name} does not match method return type {returnType.Name}";
+                        result.ParameterValues = paramStrings;
+                        return result;
+                    }
+
+                            // Check for NaN or Infinity if return type is float or double
+                            
+                    if (returnType == typeof(float))
+                    {
+                        float floatValue = (float)returnValue!;
+                        if (float.IsNaN(floatValue) || float.IsInfinity(floatValue))
+                        {
+                            result.ClassName = rClass.SimpleName;
+                            result.MethodName = method.Name;
+                            result.Outcome = "FAIL";
+                            result.FailureReason = "Returned float.NaN or Infinity";
+                            result.ParameterValues = paramStrings;
+                            return result;
+                        }
+                    }
+                    else if (returnType == typeof(double))
+                    {
+                        double doubleValue = (double)returnValue!;
+                        if (double.IsNaN(doubleValue) || double.IsInfinity(doubleValue))
+                        {
+                            result.ClassName = rClass.SimpleName;
+                            result.MethodName = method.Name;
+                            result.Outcome = "FAIL";
+                            result.FailureReason = "Returned double.NaN or Infinity";
+                            result.ParameterValues = paramStrings;
+                            return result;
+                        }
+                    }
+                }
+
+
+                        // Passed all checks
+                        //=======================================================================
+                        
+                testVariables = [];
+                instructions = [];
+                //========================================================================
+
+                result.ClassName = rClass.SimpleName;
+                result.MethodName = method.Name;
+                result.Outcome = "PASS";
+                result.ParameterValues = paramStrings;
+                result.constructedTest = sb.ToString();
+                return result;
+
+            } 
+            catch (TargetInvocationException ex)
+            {
+                string failureReason;
+                if (ex.InnerException != null)
+                {
+                    failureReason = ex.InnerException.GetType().Name;
+                }
+                else
+                {
+                    failureReason = "Exception";
+                }
+
+                result.ClassName = rClass.SimpleName;
+                result.MethodName = method.Name;
+                result.Outcome = "FAIL";
+                result.FailureReason = failureReason;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.ClassName = rClass.SimpleName;
+                result.MethodName = method.Name;
+                result.Outcome = "FAIL";
+                result.FailureReason = ex.Message;
+                return result;
+            }
+        }
         private object[] PrepareArguments(ParameterInfo[] parameters)
         {
             var args = new object[parameters.Length];
