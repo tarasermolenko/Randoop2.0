@@ -2,16 +2,16 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test1_Test14
+    public class Test1_Test19
     {
         [Fact]
-        public void Test_Test1_Add_14()
+        public void Test_Test1_Add_19()
         {
-            int v0 = 297;
-            int v1 = 678;
+            int v0 = -910;
+            int v1 = 236;
             var instance = new TestLibrary.Test1();
             var result = instance.Add(v0,v1);
-            Assert.Equal(975, result);
+            Assert.Equal(-674, result);
 
         }
     }

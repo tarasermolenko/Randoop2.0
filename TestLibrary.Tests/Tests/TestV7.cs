@@ -2,13 +2,14 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test3_Test7
+    public class Test7Impl_Test7
     {
         [Fact]
-        public void Test_Test3_Overload_x()
+        public void Test_Test7Impl_InterfaceMethod_7()
         {
-            var instance = new TestLibrary.Test3(0);
-            instance.Overload(0);
+            var instance = new TestLibrary.Test7Impl();
+            instance.InterfaceMethod();
+
         }
     }
 }

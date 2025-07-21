@@ -1,41 +1,9 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace RandoopMain
 {
-    public class TestResult
-    {
-        public string ClassName { get; set; } = "";
-        public string MethodName { get; set; } = "";
-        public string Outcome { get; set; } = ""; // "PASS", "FAIL", "SKIP"
-        public string? FailureReason { get; set; }
-        public List<string> ParameterValues { get; set; } = new();
-
-        public string constructedTest { get; set; } = "";
-    }
-
-    public class TestVariables
-    {
-        public string name { get; set; } = "";
-        public Type type;
-        public object instance;
-        public string construction;
-        public bool isOut = false;
-    }
-
-    public class MethodToTest
-    {
-        public ReflectedClass Class { get; set; }
-        public ReflectedMethod method { get; set; }
-
-        public MethodToTest(ReflectedClass c, ReflectedMethod m)
-        {
-            Class = c;
-            method = m;
-        }
-    }
 
     public class TestRunner
     {
@@ -47,7 +15,8 @@ namespace RandoopMain
         public List<TestResult> RunTests(string dllPath)
         {
             int maxTests = 50;
-            
+            int maxAttempts = 100; // infinite loops safeguard
+
             var classes = DllCollector.Collect(dllPath);
 
             var results = new List<TestResult>();
@@ -65,7 +34,9 @@ namespace RandoopMain
 
             int methodCount = methodToTest.Count;
             int testCount = 0;
-            for (int i = 0;  i < maxTests;)
+            int attemptCount = 0;
+
+            for (int i = 0; i < maxTests && attemptCount < maxAttempts;)
             {
                 int testMethodIndex = random.Next(0, methodCount);
                 TestResult TResult = makeTest(methodToTest[testMethodIndex]);
@@ -76,6 +47,7 @@ namespace RandoopMain
                     testCount++;
                 }
                 results.Add(TResult);
+                attemptCount++;
 
             }
 
@@ -369,14 +341,19 @@ namespace RandoopMain
 
                 if (p.IsOut)
                 {
-                    args[i] = GetDefault(p.ParameterType.GetElementType() ?? p.ParameterType);
-                    TestVariables tempvariable = new TestVariables();
-                    tempvariable.type = p.ParameterType.GetElementType()!;
-                    tempvariable.name = $"v{testVariables.Count}";
-                    tempvariable.instance = args[i];
-                    tempvariable.construction = $"{p.ParameterType.GetElementType()} {tempvariable.name}";
-                    tempvariable.isOut = true ;
-                    testVariables.Add( tempvariable );
+                    var argType = p.ParameterType.GetElementType()!;
+                    args[i] = GetDefault(argType);
+
+                    var variableName = $"v{testVariables.Count}";
+                    var constructionCode = $"{argType} {variableName}";
+
+                    var tempvariable = new TestVariables(argType, args[i], constructionCode)
+                    {
+                        name = variableName,
+                        isOut = true
+                    };
+
+                    testVariables.Add(tempvariable);
                     continue;
                 }
 
@@ -405,67 +382,62 @@ namespace RandoopMain
 
         private object GetDummyArg(Type type)
         {
-            TestVariables tempvariable = new TestVariables();
-            tempvariable.type = type;
-            tempvariable.name = $"v{testVariables.Count}";
+            string name = $"v{testVariables.Count}";
+
             if (type == typeof(int))
             {
-                int vtemp = random.Next(-1000, 1000);
-                tempvariable.instance = vtemp;
-                tempvariable.construction = $"int {tempvariable.name} = {vtemp}";
-                testVariables.Add(tempvariable);
-                return vtemp;
+                int value = random.Next(-1000, 1000);
+                string construction = $"int {name} = {value}";
+                testVariables.Add(new TestVariables(type, value, construction) { name = name });
+                return value;
             }
 
             if (type == typeof(double))
             {
-                double vtemp = random.NextDouble() * (random.Next(0, 2) == 0 ? 1 : -1) * 1000;
-                tempvariable.instance = vtemp;
-                tempvariable.construction = $"double {tempvariable.name} = {vtemp}";
-                testVariables.Add(tempvariable);
-                return vtemp;
+                double value = random.NextDouble() * (random.Next(0, 2) == 0 ? 1 : -1) * 1000;
+                string construction = $"double {name} = {value}";
+                testVariables.Add(new TestVariables(type, value, construction) { name = name });
+                return value;
             }
 
             if (type == typeof(float))
+            {
                 return (float)(random.NextDouble() * (random.Next(0, 2) == 0 ? 1 : -1) * 1000);
+            }
 
             if (type == typeof(string))
             {
-                string vtemp = GenerateRandomString();
-                string formated = $"\"{vtemp.Replace("\"", "\\\"")}\"";
-                tempvariable.instance = vtemp;
-                tempvariable.construction = $"string {tempvariable.name} = {formated}";
-                testVariables.Add(tempvariable);
-                return vtemp;
+                string value = GenerateRandomString();
+                string formatted = $"\"{value.Replace("\"", "\\\"")}\"";
+                string construction = $"string {name} = {formatted}";
+                testVariables.Add(new TestVariables(type, value, construction) { name = name });
+                return value;
             }
 
             if (type == typeof(bool))
             {
-                bool vtemp = random.Next(2) == 0;
-                tempvariable.instance = vtemp;
-                string formated = vtemp ? "true" : "false";
-                tempvariable.construction = $"bool {tempvariable.name} = {formated}";
-                testVariables.Add(tempvariable);
-                return vtemp;
+                bool value = random.Next(2) == 0;
+                string construction = $"bool {name} = {(value ? "true" : "false")}";
+                testVariables.Add(new TestVariables(type, value, construction) { name = name });
+                return value;
             }
 
-            if (type == typeof(object)) 
+            if (type == typeof(object))
             {
-                object vtemp = new object();
-                tempvariable.instance = vtemp;
-                tempvariable.construction = $"object {tempvariable.name} = new object();";
-                testVariables.Add(tempvariable);
-                return vtemp;
+                object value = new object();
+                string construction = $"object {name} = new object();";
+                testVariables.Add(new TestVariables(type, value, construction) { name = name });
+                return value;
             }
 
             if (type.IsValueType)
             {
-                var instance = Activator.CreateInstance(type);
+                object? instance = Activator.CreateInstance(type);
                 if (instance == null)
                     throw new InvalidOperationException($"Could not create instance of value type {type.FullName}.");
-                tempvariable.construction = $"{type.FullName} {tempvariable.name} = {type.FullName}();";
-                tempvariable.instance = instance;
-                testVariables.Add(tempvariable);
+
+                string construction = $"{type.FullName} {name} = new {type.FullName}();";
+                testVariables.Add(new TestVariables(type, instance, construction) { name = name });
                 return instance;
             }
 
@@ -475,19 +447,18 @@ namespace RandoopMain
                 var arrayInstance = Array.CreateInstance(elementType, 1);
                 arrayInstance.SetValue(GetDummyArg(elementType), 0);
 
-                tempvariable.instance = arrayInstance;
-                string[] Args = [];
-                for(int i = 0; i < arrayInstance.Length; i++)
+                var elementStrings = new List<string>();
+                for (int i = 0; i < arrayInstance.Length; i++)
                 {
-                    Args.Append(FormatArgForCode(arrayInstance.GetValue(i), elementType));
+                    elementStrings.Add(FormatArgForCode(arrayInstance.GetValue(i), elementType));
                 }
 
-                tempvariable.construction = $"{elementType.FullName}[] {tempvariable.name} = new {elementType.FullName}[] {{ {string.Join(",",Args)} }};";
-                testVariables.Add(tempvariable);
+                string construction = $"{elementType.FullName}[] {name} = new {elementType.FullName}[] {{ {string.Join(", ", elementStrings)} }};";
+                testVariables.Add(new TestVariables(type, arrayInstance, construction) { name = name });
                 return arrayInstance;
             }
 
-            // For reference types
+            // For unsupported reference types, return null
             return null!;
         }
 

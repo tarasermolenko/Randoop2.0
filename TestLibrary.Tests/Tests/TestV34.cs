@@ -2,15 +2,15 @@ using Xunit;
 
 namespace GeneratedTests
 {
-    public class Test1_Test9
+    public class Test1_Test34
     {
         [Fact]
-        public void Test_Test1_Echo_9()
+        public void Test_Test1_Echo_34()
         {
-            string v0 = "U5vhFPRqUrLGV4";
+            string v0 = "av21CUIFA3Ei2C";
             var instance = new TestLibrary.Test1();
             var result = instance.Echo(v0);
-            Assert.Equal("Echo: U5vhFPRqUrLGV4", result);
+            Assert.Equal("Echo: av21CUIFA3Ei2C", result);
 
         }
     }

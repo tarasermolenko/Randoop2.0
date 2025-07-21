@@ -13,13 +13,8 @@
 
             string dllPath = args[0];
 
-            //DllInspector.Inspect(dllPath);
-
-            // Define output path you want the test to be generated
-            string outputPath = "C:\\Users\\birfa\\Source\\Repos\\Randoop2.0\\TestLibrary.Tests\\Tests";
-
-            // Call the test generator
-            // TestGenerator.GenerateTests(dllPath, outputPath);
+            // Define output path you want the test to be generated - Maybe have user pass this via gui or comand line in final version?
+            string outputPath = "C:\\Users\\Taras\\source\\repos\\Randoop\\TestLibrary.Tests\\Tests";
 
             //Console.WriteLine($"Tests generated and saved to {outputPath}");
             TestRunner runner = new TestRunner();
