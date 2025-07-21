@@ -13,50 +13,30 @@
 
             string dllPath = args[0];
 
-            //DllInspector.Inspect(dllPath);
-
-            // Define output path you want the test to be generated
-            //string outputPath = "C:\\Users\\Taras\\source\\repos\\Randoop\\Tests\\GeneratedTests.cs";
-
-            // Call the test generator
-            // TestGenerator.GenerateTests(dllPath, outputPath);
+            // Define output path you want the test to be generated - Maybe have user pass this via gui or comand line in final version?
+            string outputPath = "C:\\Users\\Taras\\source\\repos\\Randoop\\TestLibrary.Tests\\Tests";
 
             //Console.WriteLine($"Tests generated and saved to {outputPath}");
-            List<TestResult> results = TestRunner.RunTests(dllPath);
+            TestRunner runner = new TestRunner();
 
+            List<TestResult> results = runner.RunTests(dllPath);
+            int testCount = 0;
             foreach (var result in results)
             {
-                string paramList;
-                if (result.ParameterValues.Count > 0)
-                {
-                    paramList = "(Parameters: " + string.Join(", ", result.ParameterValues) + ")";
-                }
-                else
-                {
-                    paramList = "(No parameters)";
-                }
+                string paramList = result.ParameterValues.Count > 0
+                    ? $"(Parameters: {string.Join(", ", result.ParameterValues)})"
+                    : "(No parameters)";
 
-                string returnInfo = "";
-                if (result.ReturnType != null && result.ReturnType != "")
+                Console.WriteLine($"[{result.Outcome}] {result.ClassName}.{result.MethodName} {paramList} " +
+                                  $"{(result.Outcome == "FAIL" || result.Outcome == "SKIP" ? "- " + result.FailureReason : "")}");
+                if(result.Outcome == "PASS")
                 {
-                    returnInfo = " (Returns: " + result.ReturnType;
-                    if (result.ReturnValue != null && result.ReturnValue != "")
-                    {
-                        returnInfo += " = " + result.ReturnValue;
-                    }
-                    returnInfo += ")";
+                    string outputFilePath = Path.Combine(outputPath, $"TestV{testCount}.cs"); // Safe join
+                    Directory.CreateDirectory(outputPath); // Ensure folder exists
+                    File.WriteAllText(outputFilePath, result.constructedTest);
+                    testCount++;
                 }
-
-                string failureInfo = "";
-                if (result.Outcome == "FAIL" || result.Outcome == "SKIP")
-                {
-                    if (result.FailureReason != null && result.FailureReason != "")
-                    {
-                        failureInfo = "- " + result.FailureReason;
-                    }
-                }
-
-                Console.WriteLine("[" + result.Outcome + "] " + result.ClassName + "." + result.MethodName + " " + paramList + returnInfo + " " + failureInfo);
+                
             }
 
         }
