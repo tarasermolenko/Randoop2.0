@@ -6,7 +6,7 @@ This project is work towards a modern reimplementation of the Randoop test gener
 The original Randoop tool was limited to Java and older versions of .NET
 https://github.com/abb-iss/Randoop.NET/tree/master/randoop-NET-src
 
-The project uses reflection API to explore target assemblies, randomly build method sequences and transform them into executable XUnit test cases.
+The project uses the reflection API to explore target assemblies, randomly build method sequences and transform them into executable XUnit test cases.
 
 
 To run with test Library:
