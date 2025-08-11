@@ -13,4 +13,4 @@ To run with test Library:
 dotnet run -- "C:\Users\[user]\source\repos\Randoop\TestLibrary\bin\Debug\net8.0\TestLibrary.dll"
 
 
-![demotestlib](https://github.com/tarasermolenko/Randoop2.0/blob/dev/ReadMeImages/demoimage.png?raw=true)
+![demotestlib](https://github.com/tarasermolenko/Randoop2.0/blob/main/ReadMeImages/demoimage.png?raw=true)
